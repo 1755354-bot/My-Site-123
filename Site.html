@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AETHER-09 // Renewable Energy Mainframe</title>
+    <!-- Tailwind CSS for modern utility styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        cyber: {
+                            bg: '#030712',
+                            panel: '#0a0f1d',
+                            border: '#1e3a8a',
+                            cyan: '#06b6d4',
+                            blue: '#3b82f6',
+                            glow: '#67e8f9',
+                            dim: '#1e293b'
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['JetBrains Mono', 'Courier New', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Three.js for 3D WebGL Wireframe & Holographic Renders -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Chart.js for Interactive Data Visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome for futuristic HUD icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #030712;
+            color: #f8fafc;
+            overflow-x: hidden;
+        }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        
+        /* Custom scrollbars */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #030712; }
+        ::-webkit-scrollbar-thumb { background: #1e3a8a; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #06b6d4; }
+
+        /* Holographic glassmorphism panels */
+        .glass-panel {
+            background: rgba(10, 15, 29, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            box-shadow: 0 0 25px rgba(6, 182, 212, 0.05), inset 0 0 15px rgba(6, 182, 212, 0.03);
+        }
+        .glass-panel:hover {
+            border-color: rgba(6, 182, 212, 0.4);
+            box-shadow: 0 0 35px rgba(6, 182, 212, 0.15), inset 0 0 20px rgba(6, 182, 212, 0.05);
+        }
+
+        /* Scanline overlay effect */
+        .scanlines {
+            background: linear-gradient(
+                rgba(18, 16, 16, 0) 50%, 
+                rgba(0, 0, 0, 0.25) 50%
+            ), linear-gradient(
+                90deg,
+                rgba(255, 0, 0, 0.03),
+                rgba(0, 255, 0, 0.01),
+                rgba(0, 0, 255, 0.03)
+            );
+            background-size: 100% 3px, 3px 100%;
+            pointer-events: none;
+        }
+
+        /* Glowing texts and borders */
+        .cyber-glow {
+            text-shadow: 0 0 10px rgba(6, 182, 212, 0.6), 0 0 20px rgba(6, 182, 212, 0.3);
+        }
+        .cyber-border {
+            position: relative;
+        }
+        .cyber-border::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; width: 100%; height: 2px;
+            background: linear-gradient(90deg, transparent, #06b6d4, transparent);
+        }
+
+        /* Pulsing radar animation */
+        @keyframes radar-sweep {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .animate-radar {
+            animation: radar-sweep 8s linear infinite;
+        }
+    </style>
+</head>
+<body class="relative min-h-screen flex flex-col selection:bg-cyan-500 selection:text-black">
+
+    <div id="webgl-container" class="fixed inset-0 z-0 pointer-events-none opacity-40"></div>
+    <div class="fixed inset-0 z-0 scanlines opacity-50"></div>
+
+    <header class="relative z-20 border-b border-cyan-900/40 glass-panel backdrop-blur-md sticky top-0">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <div class="relative w-10 h-10 flex items-center justify-center border border-cyan-500/50 rounded bg-cyan-950/30">
+                    <i class="fa-solid fa-atom text-cyan-400 text-xl animate-pulse"></i>
+                    <div class="absolute -top-1 -right-1 w-2 h-2 bg-cyan-400 rounded-full animate-ping"></div>
+                </div>
+                <div>
+                    <span class="text-xs font-mono text-cyan-400 tracking-widest block">SYS.VER.2026 // MAINFRAME</span>
+                    <h1 class="text-lg sm:text-xl font-bold tracking-wider bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-400 bg-clip-text text-transparent">AETHER-09 ENERGY GRID</h1>
+                </div>
+            </div>
+
+            <!-- Nav Tabs -->
+            <nav class="hidden md:flex space-x-1 lg:space-x-2 bg-slate-900/80 p-1.5 rounded-xl border border-cyan-900/50">
+                <button onclick="switchTab('overview')" id="nav-overview" class="px-4 py-2 text-xs font-mono tracking-wider rounded-lg transition-all duration-300 text-cyan-300 bg-cyan-950/60 border border-cyan-500/40 shadow-lg shadow-cyan-500/10">
+                    <i class="fa-solid fa-network-wired mr-2"></i>OVERVIEW
+                </button>
+                <button onclick="switchTab('sources')" id="nav-sources" class="px-4 py-2 text-xs font-mono tracking-wider rounded-lg transition-all duration-300 text-slate-400 hover:text-cyan-300 hover:bg-slate-800">
+                    <i class="fa-solid fa-bolt mr-2"></i>CLEAN SOURCES
+                </button>
+                <button onclick="switchTab('simulation')" id="nav-simulation" class="px-4 py-2 text-xs font-mono tracking-wider rounded-lg transition-all duration-300 text-slate-400 hover:text-cyan-300 hover:bg-slate-800">
+                    <i class="fa-solid fa-sliders mr-2"></i>SIMULATOR
+                </button>
+                <button onclick="switchTab('analytics')" id="nav-analytics" class="px-4 py-2 text-xs font-mono tracking-wider rounded-lg transition-all duration-300 text-slate-400 hover:text-cyan-300 hover:bg-slate-800">
+                    <i class="fa-solid fa-chart-line mr-2"></i>ANALYTICS
+                </button>
+            </nav>
+
+            <div class="flex items-center space-x-3">
+                <div class="hidden sm:flex flex-col text-right">
+                    <span class="text-[10px] font-mono text-cyan-400">GLOBAL EFFICIENCY</span>
+                    <span class="text-sm font-mono font-bold text-emerald-400" id="header-efficiency">94.8% OPTIMAL</span>
+                </div>
+                <button onclick="openMissionModal()" class="px-3 py-2 bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/60 text-cyan-300 text-xs font-mono rounded-lg transition shadow-lg shadow-cyan-500/20 flex items-center space-x-2">
+                    <i class="fa-solid fa-terminal"></i>
+                    <span class="hidden sm:inline">PROJECT BRIEF</span>
+                </button>
+            </div>
+        </div>
+        <!-- Mobile Navigation bar -->
+        <div class="md:hidden flex justify-around p-2 bg-slate-950/90 border-t border-cyan-900/30 text-xs font-mono">
+            <button onclick="switchTab('overview')" id="mob-nav-overview" class="text-cyan-400 p-2"><i class="fa-solid fa-network-wired block text-sm mb-1"></i>Overview</button>
+            <button onclick="switchTab('sources')" id="mob-nav-sources" class="text-slate-400 p-2"><i class="fa-solid fa-bolt block text-sm mb-1"></i>Sources</button>
+            <button onclick="switchTab('simulation')" id="mob-nav-simulation" class="text-slate-400 p-2"><i class="fa-solid fa-sliders block text-sm mb-1"></i>Simulator</button>
+            <button onclick="switchTab('analytics')" id="mob-nav-analytics" class="text-slate-400 p-2"><i class="fa-solid fa-chart-line block text-sm mb-1"></i>Analytics</button>
+        </div>
+    </header>
+
+    <main class="relative z-10 flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+
+        <!-- OVERVIEW TAB -->
+        <section id="tab-overview" class="space-y-8">
+            <!-- Hero Banner -->
+            <div class="glass-panel p-6 sm:p-10 rounded-2xl relative overflow-hidden">
+                <div class="absolute -right-20 -top-20 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="absolute -left-20 -bottom-20 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
+                
+                <div class="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                    <div class="lg:col-span-7 space-y-6">
+                        <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-cyan-950/80 border border-cyan-500/30 text-cyan-400 text-xs font-mono">
+                            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                            <span>ADVANCED SUSTAINABLE ENERGY MAINFRAME</span>
+                        </div>
+                        <h2 class="text-3xl sm:text-5xl font-extrabold tracking-tight leading-none">
+                            Powering Tomorrow with <span class="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">Zero Carbon Flux</span>
+                        </h2>
+                        <p class="text-slate-300 text-sm sm:text-base leading-relaxed">
+                            Welcome to AETHER-09, an interactive cyber-mainframe exploring next-generation renewable energy infrastructures. Dive deep into solar quantum arrays, kinetic wind networks, geothermal core taps, hydroelectric turbines, and experimental fusion reactors.
+                        </p>
+                        <div class="flex flex-wrap gap-4 pt-2">
+                            <button onclick="switchTab('sources')" class="px-6 py-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold font-mono text-xs rounded-xl transition duration-300 shadow-lg shadow-cyan-500/25 flex items-center space-x-2">
+                                <i class="fa-solid fa-cube"></i>
+                                <span>EXPLORE ENERGY SOURCES</span>
+                            </button>
+                            <button onclick="switchTab('simulation')" class="px-6 py-3 bg-slate-900 hover:bg-slate-800 border border-cyan-500/40 text-cyan-300 font-mono text-xs rounded-xl transition duration-300 flex items-center space-x-2">
+                                <i class="fa-solid fa-play"></i>
+                                <span>RUN GRID SIMULATOR</span>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Live Stats Widget -->
+                    <div class="lg:col-span-5 grid grid-cols-2 gap-4">
+                        <div class="glass-panel p-5 rounded-xl border border-cyan-900/50 flex flex-col justify-between">
+                            <span class="text-xs font-mono text-slate-400">TOTAL CAPACITY</span>
+                            <div class="my-3">
+                                <span class="text-2xl sm:text-3xl font-bold font-mono text-cyan-300">4,850</span>
+                                <span class="text-xs font-mono text-cyan-500"> GW</span>
+                            </div>
+                            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                <div class="bg-cyan-400 h-full w-[85%] rounded-full animate-pulse"></div>
+                            </div>
+                        </div>
+                        <div class="glass-panel p-5 rounded-xl border border-cyan-900/50 flex flex-col justify-between">
+                            <span class="text-xs font-mono text-slate-400">CARBON OFFSET</span>
+                            <div class="my-3">
+                                <span class="text-2xl sm:text-3xl font-bold font-mono text-emerald-400">99.4</span>
+                                <span class="text-xs font-mono text-emerald-500">%</span>
+                            </div>
+                            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                <div class="bg-emerald-400 h-full w-[99.4%] rounded-full"></div>
+                            </div>
+                        </div>
+                        <div class="glass-panel p-5 rounded-xl border border-cyan-900/50 flex flex-col justify-between">
+                            <span class="text-xs font-mono text-slate-400">ACTIVE NODES</span>
+                            <div class="my-3">
+                                <span class="text-2xl sm:text-3xl font-bold font-mono text-blue-300" id="stat-active-nodes">1,248</span>
+                                <span class="text-xs font-mono text-blue-500"> UNITS</span>
+                            </div>
+                            <span class="text-[10px] font-mono text-emerald-400"><i class="fa-solid fa-circle-check mr-1"></i>All grids synchronized</span>
+                        </div>
+                        <div class="glass-panel p-5 rounded-xl border border-cyan-900/50 flex flex-col justify-between">
+                            <span class="text-xs font-mono text-slate-400">GRID STABILITY</span>
+                            <div class="my-3">
+                                <span class="text-2xl sm:text-3xl font-bold font-mono text-cyan-400" id="stat-stability">99.9</span>
+                                <span class="text-xs font-mono text-cyan-500">%</span>
+                            </div>
+                            <span class="text-[10px] font-mono text-cyan-400"><i class="fa-solid fa-shield mr-1"></i>Quantum encrypted</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Matrix Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="glass-panel p-6 rounded-2xl border border-cyan-900/40 relative group cursor-pointer" onclick="switchTab('sources')">
+                    <div class="absolute top-4 right-4 text-cyan-500/30 group-hover:text-cyan-400 transition text-2xl"><i class="fa-solid fa-solar-panel"></i></div>
+                    <span class="text-xs font-mono text-cyan-400">MODULE 01</span>
+                    <h3 class="text-xl font-bold mt-1 mb-2">Solar & Quantum PV</h3>
+                    <p class="text-sm text-slate-400">Converting photon radiation directly into electrical current using next-gen perovskite matrices.</p>
+                    <div class="mt-4 flex items-center text-xs font-mono text-cyan-400 group-hover:translate-x-2 transition">
+                        <span>ACCESS SPECS</span> <i class="fa-solid fa-arrow-right ml-2"></i>
+                    </div>
+                </div>
+                <div class="glass-panel p-6 rounded-2xl border border-cyan-900/40 relative group cursor-pointer" onclick="switchTab('sources')">
+                    <div class="absolute top-4 right-4 text-cyan-500/30 group-hover:text-cyan-400 transition text-2xl"><i class="fa-solid fa-wind"></i></div>
+                    <span class="text-xs font-mono text-cyan-400">MODULE 02</span>
+                    <h3 class="text-xl font-bold mt-1 mb-2">Kinetic Wind Arrays</h3>
+                    <p class="text-sm text-slate-400">Offshore vertical-axis magnetic levitation turbines harvesting high-altitude atmospheric currents.</p>
+                    <div class="mt-4 flex items-center text-xs font-mono text-cyan-400 group-hover:translate-x-2 transition">
+                        <span>ACCESS SPECS</span> <i class="fa-solid fa-arrow-right ml-2"></i>
+                    </div>
+                </div>
+                <div class="glass-panel p-6 rounded-2xl border border-cyan-900/40 relative group cursor-pointer" onclick="switchTab('sources')">
+                    <div class="absolute top-4 right-4 text-cyan-500/30 group-hover:text-cyan-400 transition text-2xl"><i class="fa-solid fa-atom"></i></div>
+                    <span class="text-xs font-mono text-cyan-400">MODULE 03</span>
+                    <h3 class="text-xl font-bold mt-1 mb-2">Controlled Fusion</h3>
+                    <p class="text-sm text-slate-400">Magnetic confinement plasma reactors replicating stellar core reactions for limitless clean energy.</p>
+                    <div class="mt-4 flex items-center text-xs font-mono text-cyan-400 group-hover:translate-x-2 transition">
+                        <span>ACCESS SPECS</span> <i class="fa-solid fa-arrow-right ml-2"></i>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SOURCES TAB -->
+        <section id="tab-sources" class="space-y-8 hidden">
+            <div class="glass-panel p-6 rounded-2xl border border-cyan-900/40">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                    <div>
+                        <span class="text-xs font-mono text-cyan-400">DATABASE // 05 PRIMARY VECTORS</span>
+                        <h2 class="text-2xl sm:text-3xl font-bold">Renewable Energy Source Matrix</h2>
+                    </div>
+                    <!-- Source Selector Pills -->
+                    <div class="flex flex-wrap gap-2" id="source-pills">
+                        <button onclick="selectSource('solar')" id="pill-solar" class="px-4 py-2 text-xs font-mono rounded-xl bg-cyan-500 text-slate-950 font-bold transition">SOLAR</button>
+                        <button onclick="selectSource('wind')" id="pill-wind" class="px-4 py-2 text-xs font-mono rounded-xl bg-slate-900 text-slate-300 hover:text-cyan-300 border border-cyan-900 transition">WIND</button>
+                        <button onclick="selectSource('hydro')" id="pill-hydro" class="px-4 py-2 text-xs font-mono rounded-xl bg-slate-900 text-slate-300 hover:text-cyan-300 border border-cyan-900 transition">HYDRO</button>
+                        <button onclick="selectSource('geothermal')" id="pill-geothermal" class="px-4 py-2 text-xs font-mono rounded-xl bg-slate-900 text-slate-300 hover:text-cyan-300 border border-cyan-900 transition">GEOTHERMAL</button>
+                        <button onclick="selectSource('fusion')" id="pill-fusion" class="px-4 py-2 text-xs font-mono rounded-xl bg-slate-900 text-slate-300 hover:text-cyan-300 border border-cyan-900 transition">FUSION</button>
+                    </div>
+                </div>
+
+                <!-- Source Detailed Display -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                    <div class="lg:col-span-6 space-y-6">
+                        <div class="flex items-center space-x-3">
+                            <div id="source-icon-box" class="w-12 h-12 rounded-xl bg-cyan-950 border border-cyan-500/50 flex items-center justify-center text-cyan-400 text-2xl">
+                                <i class="fa-solid fa-solar-panel"></i>
+                            </div>
+                            <div>
+                                <span id="source-subtitle" class="text-xs font-mono text-cyan-400">VECTOR 01 // PHOTON CONVERSION</span>
+                                <h3 id="source-title" class="text-2xl sm:text-3xl font-bold text-white">Solar Quantum Arrays</h3>
+                            </div>
+                        </div>
+
+                        <p id="source-desc" class="text-slate-300 text-sm leading-relaxed">
+                            Solar energy captures photon emissions from the sun through photovoltaic cells or concentrated solar power (CSP) systems. Modern quantum dot perovskite panels achieve efficiencies exceeding 32%, converting sunlight directly into clean direct-current electricity with minimal maintenance and zero emissions.
+                        </p>
+
+                        <div class="grid grid-cols-2 gap-4 pt-2">
+                            <div class="bg-slate-900/80 p-4 rounded-xl border border-cyan-900/50">
+                                <span class="text-xs font-mono text-slate-400 block mb-1">GLOBAL POTENTIAL</span>
+                                <span id="source-potential" class="text-xl font-bold font-mono text-cyan-300">173,000 TW</span>
+                                <span class="text-[10px] font-mono text-slate-500 block mt-1">Continuous solar flux</span>
+                            </div>
+                            <div class="bg-slate-900/80 p-4 rounded-xl border border-cyan-900/50">
+                                <span class="text-xs font-mono text-slate-400 block mb-1">EFFICIENCY RATE</span>
+                                <span id="source-efficiency" class="text-xl font-bold font-mono text-emerald-400">32.4%</span>
+                                <span class="text-[10px] font-mono text-slate-500 block mt-1">Perovskite quantum cell</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center space-x-4 pt-4 border-t border-cyan-900/30">
+                            <div class="text-xs font-mono text-cyan-400"><i class="fa-solid fa-circle-info mr-1"></i> Pros & Cons Matrix:</div>
+                            <div class="flex space-x-2">
+                                <span class="px-2 py-1 bg-emerald-950 text-emerald-400 text-[10px] font-mono rounded border border-emerald-800">Renewable & Infinite</span>
+                                <span class="px-2 py-1 bg-amber-950 text-amber-400 text-[10px] font-mono rounded border border-amber-800">Weather Dependent</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Source Interactive Holographic Graphic Card -->
+                    <div class="lg:col-span-6">
+                        <div class="glass-panel p-6 rounded-2xl border border-cyan-500/30 relative overflow-hidden flex flex-col items-center justify-center min-h-[350px]">
+                            <div class="absolute inset-0 bg-radial from-cyan-500/10 via-transparent to-transparent pointer-events-none"></div>
+                            
+                            <!-- Radar Scanning Ring -->
+                            <div class="absolute w-64 h-64 rounded-full border border-cyan-500/10 pointer-events-none flex items-center justify-center">
+                                <div class="w-48 h-48 rounded-full border border-cyan-500/20 animate-pulse"></div>
+                            </div>
+                            
+                            <!-- Center Graphic Representation -->
+                            <div class="relative z-10 text-center space-y-4">
+                                <div id="source-graphic-icon" class="w-24 h-24 mx-auto rounded-2xl bg-cyan-950/80 border border-cyan-400 flex items-center justify-center text-cyan-300 text-5xl shadow-lg shadow-cyan-500/30 animate-bounce">
+                                    <i class="fa-solid fa-sun"></i>
+                                </div>
+                                <div class="font-mono text-xs text-cyan-400 tracking-wider" id="source-graphic-label">STATUS: ACTIVE GENERATION</div>
+                                <div class="text-2xl font-mono font-bold text-white" id="source-output-val">1,420 GW</div>
+                                <p class="text-xs text-slate-400 max-w-xs mx-auto">Real-time telemetry feeds direct from atmospheric orbital sensors.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SIMULATOR TAB -->
+        <section id="tab-simulation" class="space-y-8 hidden">
+            <div class="glass-panel p-6 sm:p-8 rounded-2xl border border-cyan-900/40">
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <span class="text-xs font-mono text-cyan-400">GRID CONTROL PANEL // INTERACTIVE SIMULATION</span>
+                        <h2 class="text-2xl sm:text-3xl font-bold">Clean Energy Mix Simulator</h2>
+                    </div>
+                    <button onclick="resetSimulation()" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-cyan-500/30 text-cyan-400 text-xs font-mono rounded-lg transition">
+                        <i class="fa-solid fa-rotate-right mr-1"></i> RESET DEFAULTS
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                    <!-- Sliders controls -->
+                    <div class="lg:col-span-6 space-y-6 bg-slate-950/60 p-6 rounded-xl border border-cyan-900/40">
+                        <p class="text-xs text-slate-300 font-mono">Adjust regional generation capacities to simulate grid stability, carbon emissions, and total output.</p>
+                        
+                        <!-- Slider Solar -->
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-xs font-mono">
+                                <span class="text-cyan-400"><i class="fa-solid fa-sun mr-2"></i>Solar Arrays</span>
+                                <span id="val-solar" class="text-cyan-300 font-bold">35%</span>
+                            </div>
+                            <input type="range" min="0" max="100" value="35" id="slider-solar" oninput="updateSimulation()" class="w-full accent-cyan-400 bg-slate-800 h-2 rounded-lg cursor-pointer">
+                        </div>
+
+                        <!-- Slider Wind -->
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-xs font-mono">
+                                <span class="text-cyan-400"><i class="fa-solid fa-wind mr-2"></i>Wind Turbines</span>
+                                <span id="val-wind" class="text-cyan-300 font-bold">30%</span>
+                            </div>
+                            <input type="range" min="0" max="100" value="30" id="slider-wind" oninput="updateSimulation()" class="w-full accent-cyan-400 bg-slate-800 h-2 rounded-lg cursor-pointer">
+                        </div>
+
+                        <!-- Slider Hydro -->
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-xs font-mono">
+                                <span class="text-cyan-400"><i class="fa-solid fa-water mr-2"></i>Hydroelectric</span>
+                                <span id="val-hydro" class="text-cyan-300 font-bold">20%</span>
+                            </div>
+                            <input type="range" min="0" max="100" value="20" id="slider-hydro" oninput="updateSimulation()" class="w-full accent-cyan-400 bg-slate-800 h-2 rounded-lg cursor-pointer">
+                        </div>
+
+                        <!-- Slider Geothermal -->
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-xs font-mono">
+                                <span class="text-cyan-400"><i class="fa-solid fa-fire mr-2"></i>Geothermal</span>
+                                <span id="val-geothermal" class="text-cyan-300 font-bold">10%</span>
+                            </div>
+                            <input type="range" min="0" max="100" value="10" id="slider-geothermal" oninput="updateSimulation()" class="w-full accent-cyan-400 bg-slate-800 h-2 rounded-lg cursor-pointer">
+                        </div>
+
+                        <!-- Slider Fusion -->
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-xs font-mono">
+                                <span class="text-cyan-400"><i class="fa-solid fa-atom mr-2"></i>Fusion Core</span>
+                                <span id="val-fusion" class="text-cyan-300 font-bold">5%</span>
+                            </div>
+                            <input type="range" min="0" max="100" value="5" id="slider-fusion" oninput="updateSimulation()" class="w-full accent-cyan-400 bg-slate-800 h-2 rounded-lg cursor-pointer">
+                        </div>
+                    </div>
+
+                    <!-- Simulation Live Metrics Output -->
+                    <div class="lg:col-span-6 space-y-6">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="glass-panel p-5 rounded-xl border border-cyan-900">
+                                <span class="text-xs font-mono text-slate-400">ESTIMATED OUTPUT</span>
+                                <div class="text-2xl font-bold font-mono text-cyan-300 mt-2" id="sim-output">4,250 GW</div>
+                                <span class="text-[10px] font-mono text-cyan-400 mt-1 block">Sufficient for 1.4B homes</span>
+                            </div>
+                            <div class="glass-panel p-5 rounded-xl border border-cyan-900">
+                                <span class="text-xs font-mono text-slate-400">CO2 EMISSIONS</span>
+                                <div class="text-2xl font-bold font-mono text-emerald-400 mt-2" id="sim-co2">0.02 MT</div>
+                                <span class="text-[10px] font-mono text-emerald-400 mt-1 block">99.8% reduction vs fossil</span>
+                            </div>
+                        </div>
+
+                        <div class="glass-panel p-6 rounded-xl border border-cyan-900 relative">
+                            <h3 class="text-sm font-mono text-cyan-400 mb-4"><i class="fa-solid fa-chart-pie mr-2"></i>Energy Mix Distribution</h3>
+                            <!-- Mini canvas or bar breakdown -->
+                            <div class="space-y-3 font-mono text-xs">
+                                <div>
+                                    <div class="flex justify-between mb-1">
+                                        <span>Solar</span><span id="pct-solar">35%</span>
+                                    </div>
+                                    <div class="w-full bg-slate-900 h-2 rounded-full overflow-hidden">
+                                        <div id="bar-solar" class="bg-amber-400 h-full transition-all duration-300" style="width: 35%"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between mb-1">
+                                        <span>Wind</span><span id="pct-wind">30%</span>
+                                    </div>
+                                    <div class="w-full bg-slate-900 h-2 rounded-full overflow-hidden">
+                                        <div id="bar-wind" class="bg-cyan-400 h-full transition-all duration-300" style="width: 30%"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between mb-1">
+                                        <span>Hydro</span><span id="pct-hydro">20%</span>
+                                    </div>
+                                    <div class="w-full bg-slate-900 h-2 rounded-full overflow-hidden">
+                                        <div id="bar-hydro" class="bg-blue-500 h-full transition-all duration-300" style="width: 20%"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between mb-1">
+                                        <span>Geothermal</span><span id="pct-geothermal">10%</span>
+                                    </div>
+                                    <div class="w-full bg-slate-900 h-2 rounded-full overflow-hidden">
+                                        <div id="bar-geothermal" class="bg-rose-500 h-full transition-all duration-300" style="width: 10%"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between mb-1">
+                                        <span>Fusion</span><span id="pct-fusion">5%</span>
+                                    </div>
+                                    <div class="w-full bg-slate-900 h-2 rounded-full overflow-hidden">
+                                        <div id="bar-fusion" class="bg-indigo-400 h-full transition-all duration-300" style="width: 5%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ANALYTICS TAB -->
+        <section id="tab-analytics" class="space-y-8 hidden">
+            <div class="glass-panel p-6 sm:p-8 rounded-2xl border border-cyan-900/40">
+                <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                    <div>
+                        <span class="text-xs font-mono text-cyan-400">TELEMETRY DATA // REAL-TIME CHARTS</span>
+                        <h2 class="text-2xl sm:text-3xl font-bold">Global Energy Generation Analytics</h2>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="updateChartTimeframe('24H')" class="px-3 py-1 bg-cyan-950 border border-cyan-500/50 text-cyan-300 text-xs font-mono rounded">24H</button>
+                        <button onclick="updateChartTimeframe('7D')" class="px-3 py-1 bg-slate-900 border border-slate-800 text-slate-400 text-xs font-mono rounded">7D</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <div class="lg:col-span-8 bg-slate-950/60 p-6 rounded-xl border border-cyan-900/40 relative">
+                        <div class="h-80 w-full">
+                            <canvas id="energyChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="lg:col-span-4 space-y-4">
+                        <div class="glass-panel p-5 rounded-xl border border-cyan-900">
+                            <span class="text-xs font-mono text-slate-400 block">PEAK EFFICIENCY WINDOW</span>
+                            <span class="text-xl font-bold font-mono text-cyan-300 mt-1 block">12:00 - 16:00 UTC</span>
+                            <p class="text-xs text-slate-400 mt-2">Maximum solar radiation combined with optimal coastal wind speeds.</p>
+                        </div>
+                        <div class="glass-panel p-5 rounded-xl border border-cyan-900">
+                            <span class="text-xs font-mono text-slate-400 block">STORAGE CAPACITY</span>
+                            <span class="text-xl font-bold font-mono text-emerald-400 mt-1 block">420 GWh Buffer</span>
+                            <p class="text-xs text-slate-400 mt-2">Solid-state quantum battery banks operating at 98.2% round-trip efficiency.</p>
+                        </div>
+                        <div class="glass-panel p-5 rounded-xl border border-cyan-900">
+                            <span class="text-xs font-mono text-slate-400 block">PROJECT STATUS</span>
+                            <span class="text-xl font-bold font-mono text-indigo-400 mt-1 block">ONLINE & DEPLOYED</span>
+                            <p class="text-xs text-slate-400 mt-2">Hosted on Render & GitHub Codespaces for school project demonstration.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <div id="mission-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md hidden">
+        <div class="glass-panel p-6 sm:p-8 rounded-2xl max-w-lg w-full border border-cyan-500/50 space-y-6 relative">
+            <button onclick="closeMissionModal()" class="absolute top-4 right-4 text-slate-400 hover:text-cyan-300 text-lg"><i class="fa-solid fa-xmark"></i></button>
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-cyan-950 border border-cyan-500/50 flex items-center justify-center text-cyan-400 text-xl">
+                    <i class="fa-solid fa-terminal"></i>
+                </div>
+                <div>
+                    <span class="text-xs font-mono text-cyan-400">PROJECT BRIEF // RENEWABLE ENERGY</span>
+                    <h3 class="text-xl font-bold text-white">About AETHER-09</h3>
+                </div>
+            </div>
+            <p class="text-sm text-slate-300 leading-relaxed">
+                This project was engineered to go above and beyond standard school presentations. Utilizing a futuristic cyber-mainframe aesthetic, it combines Three.js WebGL wireframe animations, real-time interactive energy mix simulations, and comprehensive data visualizers to showcase the absolute potential of renewable energy sources.
+            </p>
+            <div class="bg-slate-900/80 p-4 rounded-xl border border-cyan-900/50 space-y-2 text-xs font-mono">
+                <div class="flex justify-between text-slate-400"><span>IDE:</span><span class="text-cyan-300">GitHub Codespaces</span></div>
+                <div class="flex justify-between text-slate-400"><span>HOSTING:</span><span class="text-cyan-300">Render Cloud</span></div>
+                <div class="flex justify-between text-slate-400"><span>FRAMEWORK:</span><span class="text-cyan-300">Vanilla HTML5 / Tailwind / Three.js</span></div>
+            </div>
+            <button onclick="closeMissionModal()" class="w-full py-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold font-mono text-xs rounded-xl transition">
+                CLOSE TELEMETRY
+            </button>
+        </div>
+    </div>
+
+    <footer class="relative z-10 border-t border-cyan-900/40 glass-panel mt-12 py-6 text-center text-xs font-mono text-slate-500">
+        <p>AETHER-09 MAINFRAME // RENEWABLE ENERGY SCHOOL PROJECT // HOSTED ON RENDER</p>
+    </footer>
+
+    <script>
+        // Tab switching logic with smooth transitions
+        function switchTab(tabId) {
+            const tabs = ['overview', 'sources', 'simulation', 'analytics'];
+            tabs.forEach(t => {
+                const section = document.getElementById(`tab-${t}`);
+                const navBtn = document.getElementById(`nav-${t}`);
+                const mobBtn = document.getElementById(`mob-nav-${t}`);
+                
+                if (t === tabId) {
+                    section.classList.remove('hidden');
+                    if(navBtn) {
+                        navBtn.className = "px-4 py-2 text-xs font-mono tracking-wider rounded-lg transition-all duration-300 text-cyan-300 bg-cyan-950/60 border border-cyan-500/40 shadow-lg shadow-cyan-500/10";
+                    }
+                    if(mobBtn) {
+                        mobBtn.className = "text-cyan-400 p-2";
+                    }
+                } else {
+                    section.classList.add('hidden');
+                    if(navBtn) {
+                        navBtn.className = "px-4 py-2 text-xs font-mono tracking-wider rounded-lg transition-all duration-300 text-slate-400 hover:text-cyan-300 hover:bg-slate-800";
+                    }
+                    if(mobBtn) {
+                        mobBtn.className = "text-slate-400 p-2";
+                    }
+                }
+            });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Modal triggers
+        function openMissionModal() {
+            document.getElementById('mission-modal').classList.remove('hidden');
+        }
+        function closeMissionModal() {
+            document.getElementById('mission-modal').classList.add('hidden');
+        }
+
+        // Energy Source Data Matrix
+        const sourceData = {
+            solar: {
+                title: "Solar Quantum Arrays",
+                subtitle: "VECTOR 01 // PHOTON CONVERSION",
+                desc: "Solar energy captures photon emissions from the sun through photovoltaic cells or concentrated solar power (CSP) systems. Modern quantum dot perovskite panels achieve efficiencies exceeding 32%, converting sunlight directly into clean direct-current electricity.",
+                potential: "173,000 TW",
+                efficiency: "32.4%",
+                icon: "fa-solar-panel",
+                graphicIcon: "fa-sun",
+                label: "STATUS: ACTIVE PHOTON CAPTURE",
+                output: "1,420 GW"
+            },
+            wind: {
+                title: "Kinetic Wind Arrays",
+                subtitle: "VECTOR 02 // ATMOSPHERIC KINETIC",
+                desc: "Offshore vertical-axis magnetic levitation turbines harness high-altitude atmospheric currents. By operating in deep ocean corridors where winds are uninterrupted by terrain, these turbines deliver continuous baseline power.",
+                potential: "72,000 TW",
+                efficiency: "48.1%",
+                icon: "fa-wind",
+                graphicIcon: "fa-wind",
+                label: "STATUS: TURBINE RESONANCE OPTIMAL",
+                output: "1,280 GW"
+            },
+            hydro: {
+                title: "Hydroelectric Turbine Grid",
+                subtitle: "VECTOR 03 // FLUVIAL KINETIC FLOW",
+                desc: "Advanced low-impact tidal and run-of-river hydroelectric stations convert gravitational water flow into electrical current without disrupting aquatic ecosystems, equipped with fish-safe Kaplan turbines.",
+                potential: "15,000 TW",
+                efficiency: "90.5%",
+                icon: "fa-water",
+                graphicIcon: "fa-water",
+                label: "STATUS: FLOW VELOCITY STABLE",
+                output: "950 GW"
+            },
+            geothermal: {
+                title: "Geothermal Core Taps",
+                subtitle: "VECTOR 04 // THERMAL ENTHALPY",
+                desc: "Enhanced geothermal systems drill deep into subterranean basalt layers, circulating high-pressure fluids to harvest Earth's infinite mantle heat. Powers high-efficiency steam turbines day and night.",
+                potential: "45,000 TW",
+                efficiency: "74.0%",
+                icon: "fa-fire",
+                graphicIcon: "fa-fire",
+                label: "STATUS: SUB-SURFACE ENTHALPY STABLE",
+                output: "680 GW"
+            },
+            fusion: {
+                title: "Controlled Magnetic Fusion",
+                subtitle: "VECTOR 05 // STELLAR PLASMA CORE",
+                desc: "Experimental tokamak and stellarator reactors replicating stellar core fusion using deuterium-tritium plasma. Delivering virtually limitless zero-waste power with zero radioactive byproducts.",
+                potential: "UNLIMITED",
+                efficiency: "99.9%",
+                icon: "fa-atom",
+                graphicIcon: "fa-atom",
+                label: "STATUS: PLASMA CONFINEMENT SECURE",
+                output: "520 GW"
+            }
+        };
+
+        function selectSource(sourceKey) {
+            const data = sourceData[sourceKey];
+            document.getElementById('source-title').innerText = data.title;
+            document.getElementById('source-subtitle').innerText = data.subtitle;
+            document.getElementById('source-desc').innerText = data.desc;
+            document.getElementById('source-potential').innerText = data.potential;
+            document.getElementById('source-efficiency').innerText = data.efficiency;
+            document.getElementById('source-icon-box').innerHTML = `<i class="fa-solid ${data.icon}"></i>`;
+            document.getElementById('source-graphic-icon').innerHTML = `<i class="fa-solid ${data.graphicIcon}"></i>`;
+            document.getElementById('source-graphic-label').innerText = data.label;
+            document.getElementById('source-output-val').innerText = data.output;
+
+            // Update pill styling
+            ['solar', 'wind', 'hydro', 'geothermal', 'fusion'].forEach(k => {
+                const pill = document.getElementById(`pill-${k}`);
+                if(k === sourceKey) {
+                    pill.className = "px-4 py-2 text-xs font-mono rounded-xl bg-cyan-500 text-slate-950 font-bold transition";
+                } else {
+                    pill.className = "px-4 py-2 text-xs font-mono rounded-xl bg-slate-900 text-slate-300 hover:text-cyan-300 border border-cyan-900 transition";
+                }
+            });
+        }
+
+        // Simulation Calculator Logic
+        function updateSimulation() {
+            const sSolar = parseInt(document.getElementById('slider-solar').value);
+            const sWind = parseInt(document.getElementById('slider-wind').value);
+            const sHydro = parseInt(document.getElementById('slider-hydro').value);
+            const sGeo = parseInt(document.getElementById('slider-geothermal').value);
+            const sFusion = parseInt(document.getElementById('slider-fusion').value);
+
+            // Normalize or display percentages
+            document.getElementById('val-solar').innerText = sSolar + '%';
+            document.getElementById('val-wind').innerText = sWind + '%';
+            document.getElementById('val-hydro').innerText = sHydro + '%';
+            document.getElementById('val-geothermal').innerText = sGeo + '%';
+            document.getElementById('val-fusion').innerText = sFusion + '%';
+
+            document.getElementById('pct-solar').innerText = sSolar + '%';
+            document.getElementById('pct-wind').innerText = sWind + '%';
+            document.getElementById('pct-hydro').innerText = sHydro + '%';
+            document.getElementById('pct-geothermal').innerText = sGeo + '%';
+            document.getElementById('pct-fusion').innerText = sFusion + '%';
+
+            document.getElementById('bar-solar').style.width = sSolar + '%';
+            document.getElementById('bar-wind').style.width = sWind + '%';
+            document.getElementById('bar-hydro').style.width = sHydro + '%';
+            document.getElementById('bar-geothermal').style.width = sGeo + '%';
+            document.getElementById('bar-fusion').style.width = sFusion + '%';
+
+            const totalSum = sSolar + sWind + sHydro + sGeo + sFusion;
+            const outputGW = Math.round((totalSum / 100) * 5500);
+            const co2MT = (Math.max(0, (100 - (totalSum / 5)) * 0.01)).toFixed(2);
+
+            document.getElementById('sim-output').innerText = outputGW.toLocaleString() + ' GW';
+            document.getElementById('sim-co2').innerText = co2MT + ' MT';
+        }
+
+        function resetSimulation() {
+            document.getElementById('slider-solar').value = 35;
+            document.getElementById('slider-wind').value = 30;
+            document.getElementById('slider-hydro').value = 20;
+            document.getElementById('slider-geothermal').value = 10;
+            document.getElementById('slider-fusion').value = 5;
+            updateSimulation();
+        }
+
+        // Three.js Background Wireframe Grid & Particles
+        let scene, camera, renderer, wireframeMesh, particleSystem;
+
+        function initThreeJS() {
+            const container = document.getElementById('webgl-container');
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 30;
+
+            renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            container.appendChild(renderer.domElement);
+
+            // Wireframe Terrain / Grid
+            const geometry = new THREE.PlaneGeometry(60, 60, 24, 24);
+            const material = new THREE.MeshBasicMaterial({
+                color: 0x06b6d4,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.25
+            });
+            wireframeMesh = new THREE.Mesh(geometry, material);
+            wireframeMesh.rotation.x = Math.PI / 3;
+            wireframeMesh.position.y = -10;
+            scene.add(wireframeMesh);
+
+            // Floating Cyber Particles
+            const particleCount = 300;
+            const particleGeo = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+
+            for(let i = 0; i < particleCount * 3; i += 3) {
+                positions[i] = (Math.random() - 0.5) * 60;
+                positions[i+1] = (Math.random() - 0.5) * 40;
+                positions[i+2] = (Math.random() - 0.5) * 60;
+            }
+
+            particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const particleMat = new THREE.PointsMaterial({
+                color: 0x3b82f6,
+                size: 0.4,
+                transparent: true,
+                opacity: 0.6
+            });
+            particleSystem = new THREE.Points(particleGeo, particleMat);
+            scene.add(particleSystem);
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animateThreeJS() {
+            requestAnimationFrame(animateThreeJS);
+
+            if (wireframeMesh) {
+                wireframeMesh.rotation.z += 0.001;
+            }
+            if (particleSystem) {
+                particleSystem.rotation.y += 0.0005;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Chart.js Analytics Initialization
+        let energyChartInstance = null;
+        function initChart() {
+            const ctx = document.getElementById('energyChart').getContext('2d');
+            energyChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00'],
+                    datasets: [{
+                        label: 'Solar Output (GW)',
+                        data: [100, 50, 800, 2400, 2100, 900, 150],
+                        borderColor: '#06b6d4',
+                        backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }, {
+                        label: 'Wind Output (GW)',
+                        data: [1200, 1400, 1100, 900, 1300, 1600, 1500],
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 } }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { color: 'rgba(30, 58, 138, 0.2)' }, ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono' } } },
+                        y: { grid: { color: 'rgba(30, 58, 138, 0.2)' }, ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono' } } }
+                    }
+                }
+            });
+        }
+
+        function updateChartTimeframe(tf) {
+            if(!energyChartInstance) return;
+            if(tf === '24H') {
+                energyChartInstance.data.labels = ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00'];
+                energyChartInstance.data.datasets[0].data = [100, 50, 800, 2400, 2100, 900, 150];
+            } else {
+                energyChartInstance.data.labels = ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'];
+                energyChartInstance.data.datasets[0].data = [1400, 1600, 1200, 1800, 1900, 1700, 1850];
+            }
+            energyChartInstance.update();
+        }
+
+        // Initialize everything on window load
+        window.onload = function() {
+            initThreeJS();
+            animateThreeJS();
+            initChart();
+            updateSimulation();
+        }
+    </script>
+</body>
+</html>
